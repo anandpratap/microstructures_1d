@@ -35,5 +35,6 @@ if __name__ == "__main__":
     xlabel('x')
     ylabel('u\'(x)')
     gca().ticklabel_format(axis='y', style='sci', scilimits=(-1,1))
-    show()
     savefig("solution.pdf")
+    show()
+    
