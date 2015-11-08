@@ -13,7 +13,7 @@ if __name__ == "__main__":
     print("Differentiated Equation: ", eqn.f)
     
     # define domain, note complex type
-    x = np.linspace(0.0, 1.0, 250, dtype=np.complex)
+    x = np.linspace(0.0, 1.0, 200, dtype=np.complex)
 
     # intialize solution
     u = np.zeros_like(x, dtype=x.dtype)
@@ -23,8 +23,7 @@ if __name__ == "__main__":
     solver.maxiter = 3
     solver.dt = 1e10
     solver.run()
-    
-    # plot
+     # plot
     figure()
     subplot(211)
     plot(x, u, 'r-')
@@ -37,3 +36,4 @@ if __name__ == "__main__":
     ylabel('u\'(x)')
     gca().ticklabel_format(axis='y', style='sci', scilimits=(-1,1))
     show()
+    savefig("solution.pdf")

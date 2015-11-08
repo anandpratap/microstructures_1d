@@ -20,4 +20,4 @@ if __name__ == "__main__":
     solver.dt = 1e10
     solver.param = 1.0
     solver.run()
-    np.savetxt("u_benchmark", solver.u.astype(np.float64) + np.random.randn(100)*0.0001)
+    np.savetxt("u_benchmark", solver.u.astype(np.float64))

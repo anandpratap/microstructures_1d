@@ -6,7 +6,6 @@ class Equation(object):
     def __init__(self):
         self.eps, self.eps_x = sp.symbols("eps eps_x")
         self.x, self.u_x, self.u_xx, self.u_xxx, self.u_xxxx = sp.symbols("x u_x u_xx u_xxx u_xxxx")
-        self.param = sp.Symbol("param")
 
     def energy_function(self):
         raise NotImplementedError("Energy function not implemented!")
@@ -66,6 +65,7 @@ class ConvexEquation(Equation):
 class ConvexEquationParam(Equation):
     def __init__(self):
         Equation.__init__(self)
+        self.param = sp.Symbol("param")
 
     def energy_function(self):
         self.mu = 1.0
@@ -92,7 +92,7 @@ class ConvexEquationParam(Equation):
 class NonConvexEquation(Equation):
     def __init__(self):
         Equation.__init__(self)
-
+                
     def energy_function(self):
         self.mu = 1.0
         self.g = 2**(-12)
@@ -110,7 +110,8 @@ class NonConvexEquation(Equation):
 class NonConvexEquationParam(Equation):
     def __init__(self):
         Equation.__init__(self)
-
+        self.param = sp.Symbol("param")
+        
     def energy_function(self):
         self.mu = 1.0
         self.g = 2**(-12)

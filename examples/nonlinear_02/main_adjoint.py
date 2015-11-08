@@ -23,14 +23,23 @@ if __name__ == "__main__":
     sens = adsolver.sens
     obj_base = obj(u)
 
-    x = np.linspace(0.0, 1.0, 1000, dtype=np.complex)
-    u = np.zeros_like(x, dtype=x.dtype)
-    solver = Solver(eqn, x, u)
-    solver.maxiter = 3
-    solver.dt = 1e10
-    solver.param += 1e-4
-    solver.run()
-    obj_p = obj(u)
-    
-    print("Finite Difference ", (obj_p - obj_base)/1e-4)
-    print("Adjoint ", sens)
+    fd = []
+    dparams = 1.0/10.0**np.array(range(1, 14))
+    for dparam in dparams:
+        x = np.linspace(0.0, 1.0, 1000, dtype=np.complex)
+        u = np.zeros_like(x, dtype=x.dtype)
+        solver = Solver(eqn, x, u)
+        solver.maxiter = 3
+        solver.dt = 1e10
+        solver.param = solver.param + dparam
+        solver.run()
+        obj_p = obj(u)
+        fd.append((obj_p - obj_base)/dparam)
+        
+    figure()
+    loglog(dparams, abs(np.ones_like(dparams)*sens-np.array(fd)), 'r--', label="Adjoints - Finite Diff")
+    xlabel("dparam")
+    ylabel("dJ/dparam")
+    legend()
+    savefig("sensitivity.pdf")
+    show()

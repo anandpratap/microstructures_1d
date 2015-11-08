@@ -13,7 +13,7 @@ if __name__ == "__main__":
     print("Differentiated Equation: ", eqn.f)
     
     # define domain, note complex type
-    x = np.linspace(0.0, 1.0, 1000, dtype=np.complex)
+    x = np.linspace(0.0, 1.0, 200, dtype=np.complex)
 
     # intialize solution
     u = np.zeros_like(x, dtype=x.dtype)
@@ -27,7 +27,10 @@ if __name__ == "__main__":
     u_analytic = eqn.analytic_solution(x)
     
     # plot
-    plot(x, u, 'o',label='Finite Difference')
-    plot(x, u_analytic, label='Analytic')
-    legend()
+    plot(x, u, 'o',label='Numerical')
+    plot(x, u_analytic, 'r--', label='Analytic')
+    xlabel('x')
+    ylabel('u(x)')
+    legend(loc=2)
+    savefig("solution.pdf")
     show()
