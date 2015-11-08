@@ -74,7 +74,6 @@ class NonConvexEquation(Equation):
 
     def boundary(self, x, u):
         R = np.zeros(np.shape(u), dtype=u.dtype)
-        dx = x[1] - x[0]
         R[0] = u[0]
         R[-1] = (u[-1] - self.g)
         return R
