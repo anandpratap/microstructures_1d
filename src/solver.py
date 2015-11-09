@@ -6,8 +6,8 @@ from scipy.sparse.linalg import spsolve
 class Solver(object):
     def __init__(self, equation, x, u):
         self.equation = equation
-        self.x = x
-        self.u = u
+        self.x = np.copy(x)
+        self.u = np.copy(u)
         self.n = np.size(self.u)
         self.dx = x[1] - x[0]
         assert(np.size(x) == np.size(u) == self.n)
@@ -98,7 +98,7 @@ class AdjointSolver(Solver):
         du = 1e-14
         for i in range(self.n):
             u[i] = u[i] + 1j*du
-            dJdU[i] = np.imag(self.obj(u))/du
+            dJdU[i] = np.imag(self.obj(u, self.param))/du
             u[i] = u[i] - 1j*du
         return dJdU
 
@@ -116,8 +116,16 @@ class AdjointSolver(Solver):
         dRdparam = np.imag(R[:])/dparam
         return dRdparam
 
+    def calc_obj_param(self):
+        dparam = 1e-14
+        self.param = self.param + 1j*dparam
+        delJ = np.imag(self.obj(self.u, self.param))/dparam
+        self.param = self.param - 1j*dparam
+        return delJ
+
     def calc_sensitivity(self):
         dR = self.calc_residual_dparam(self.u)
         psi = self.calc_psi()
-        sens = psi.T.dot(dR)
+        delJ = self.calc_obj_param()
+        sens = delJ + psi.T.dot(dR)
         return sens

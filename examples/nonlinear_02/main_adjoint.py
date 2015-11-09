@@ -11,7 +11,7 @@ if __name__ == "__main__":
     eqn.setup()
     print("Energy Function: ", eqn.w)
     print("Differentiated Equation: ", eqn.f)
-    obj = lambda u : sum(u*u)
+    obj = lambda u, param : sum(u*u)*1e4 + param*param
     x = np.linspace(0.0, 1.0, 1000, dtype=np.complex)
     u = np.zeros_like(x, dtype=x.dtype)
     solver = Solver(eqn, x, u)
@@ -19,9 +19,9 @@ if __name__ == "__main__":
     solver.dt = 1e10
     solver.run()
 
-    adsolver = AdjointSolver(eqn, x, u, obj) 
+    adsolver = AdjointSolver(eqn, x, solver.u, obj) 
     sens = adsolver.sens
-    obj_base = obj(u)
+    obj_base = obj(solver.u, solver.param)
 
     fd = []
     dparams = 1.0/10.0**np.array(range(1, 14))
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         solver.dt = 1e10
         solver.param = solver.param + dparam
         solver.run()
-        obj_p = obj(u)
+        obj_p = obj(solver.u, solver.param)
         fd.append((obj_p - obj_base)/dparam)
         
     figure()
