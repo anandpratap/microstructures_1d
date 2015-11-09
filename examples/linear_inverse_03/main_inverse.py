@@ -31,8 +31,7 @@ if __name__ == "__main__":
         if i == 0:
             u_prior = np.copy(solver.u)
         print("Inverse Step ", i, "OBJ: ", obj_base)
-        
-
+        print("------ l = ", solver.param*0.1)
     u__ = np.copy(solver.u)
     figure(1)
     plot(x, u_prior, "g-", label="Prior")
@@ -57,7 +56,7 @@ if __name__ == "__main__":
         obj_base = obj(solver.u, solver.param)
         param = param - sens/abs(sens)*stepsize
         print("Inverse Step ", i, "OBJ: ", obj_base)
-        
+        print("------ l = ", 0.1*solver.param)
     figure(1)
     plot(x, solver.u, "k--", label="Posterior With noise")
     plot(x[::5], ub[::5], "b.-", label="Benchmark with noise")

@@ -6,3 +6,4 @@ report.pdf
 *.aux
 *.log
 reportNotes.bib
+*.pyc
