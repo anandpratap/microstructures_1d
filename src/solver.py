@@ -1,10 +1,11 @@
 import numpy as np
 import sympy as sp
 import scipy.sparse as sparse
+from sympy.utilities.autowrap import ufuncify
 from scipy.sparse.linalg import spsolve
 
 class Solver(object):
-    def __init__(self, equation, x, u):
+    def __init__(self, equation, x, u, verbose=False):
         self.equation = equation
         self.x = np.copy(x)
         self.u = np.copy(u)
@@ -21,6 +22,8 @@ class Solver(object):
         self.dt = 1e7
         self.parse_equation()
         self.param = 1.0
+        self.verbose = verbose
+        self.tol = 1e-10
 
     def calc_first_der(self, u):
         self.u_x[1:-1] = (u[2:] - u[0:-2])/(2*self.dx)
@@ -42,7 +45,6 @@ class Solver(object):
         else:
             args = (self.equation.eps, self.equation.u_xx, self.equation.u_xxxx)
         self.f = sp.lambdify(args, self.equation.f, "numpy")
-    
     def calc_residual(self, u):
         if hasattr(self.equation, "param"):
             R = self.equation.boundary(self.x, u, self.param)
@@ -82,8 +84,10 @@ class Solver(object):
     def run(self):
         for iter in range(self.maxiter):
             norm = self.step()
-            print("Iteration number: " , iter, " dU Norm: ", norm)
-
+            if self.verbose:
+                print("Iteration number: " , iter, " dU Norm: ", norm)
+            if norm < self.tol:
+                break
     def setup(self):
         pass
 
