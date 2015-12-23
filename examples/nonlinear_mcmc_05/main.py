@@ -87,8 +87,8 @@ if __name__ == "__main__":
     plot(x, u_prior, 'g-', label="Prior")
     plot(x, u_post, 'r-', label="Posterior")
     legend(loc=4)
-    xlabel('u(x)')
-    ylabel('x')
+    ylabel('u(x)')
+    xlabel('x')
     savefig('u.pdf')
 
     figure()

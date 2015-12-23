@@ -155,7 +155,7 @@ Strategy from the previous section did not work for this case. Fig. \ref{fig:non
     \caption{Maximum displacement (max of u(x)) with variation in l (or \be)}
     \label{fig:nonconvex:inverse}
 \end{figure}
-\section{Non Convex Inversion using MCMC{\texttt examples/nonlinear\_mcmc\_05}}
+\section{Non Convex Inversion using MCMC \texttt{examples/nonlinear\_mcmc\_05}}
 The failure of gradient based methods motivates a need for non gradient based optimization which looks for global minima. For this case, I am using Markov chain Monte Carlo. I generate the data assuming the length scale(l) to be 1 (and call it the Benchmark). I start from a prior $l = N(5, 0.1^2)$, where $N$ represents normal distribution with given mean and standard deviation. Further, since I am using exact data, I set $\sigma_{obs} = 10^{-10}$. For now, I am only interested in obtaining the MAP solution, so I am running for 1000 samples which gives decent result for the MAP length scale, distribution might not be accurate. Results from the inversion are presented in figs \ref{fig:nonconvex:mcmc:u} - \ref{fig:nonconvex:mcmc:mcmc}. The posterior solution is almost identical to the benchmark, also note (from the posterior distribution) that the MAP solution is almost one, which is the true solution.
 \begin{figure}[!h]
 	\includegraphics[width=0.85\textwidth]{figures/nonlinear_mcmc_05/u.pdf}
