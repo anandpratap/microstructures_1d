@@ -24,6 +24,7 @@ class Solver(object):
         self.param = 1.0
         self.verbose = verbose
         self.tol = 1e-10
+        self.hbc = True
 
     def calc_first_der(self, u):
         self.u_x[1:-1] = (u[2:] - u[0:-2])/(2*self.dx)
@@ -36,8 +37,16 @@ class Solver(object):
         
     def calc_fourth_der(self, u):
         self.u_xxxx[2:-2] = (u[0:-4] - 4.0*u[1:-3] + 6.0*u[2:-2] - 4.0*u[3:-1] + u[4:])/self.dx**4
-        self.u_xxxx[1] = (u[1] - 4.0*u[0] + 6.0*u[1] - 4.0*u[2] + u[3])/self.dx**4
-        self.u_xxxx[-2] = (u[-4] - 4.0*u[-3] + 6.0*u[-2] - 4.0*u[-1] + u[-2])/self.dx**4
+        if self.hbc:
+            ub = 4.0*(-5.0/6.0*u[0] + 1.5*u[1] - 0.5*u[2] + 1.0/12.0*u[3])
+        else:
+            ub = u[1]
+        self.u_xxxx[1] = (ub - 4.0*u[0] + 6.0*u[1] - 4.0*u[2] + u[3])/self.dx**4
+        if self.hbc:
+            ub = -4.0*(5.0/6.0*u[-1] - 1.5*u[-2] + 0.5*u[-3] - 1.0/12.0*u[-4])
+        else:
+            ub = u[-2]
+        self.u_xxxx[-2] = (u[-4] - 4.0*u[-3] + 6.0*u[-2] - 4.0*u[-1] + ub)/self.dx**4
 
     def parse_equation(self):
         if hasattr(self.equation, "param"):
@@ -64,7 +73,7 @@ class Solver(object):
 
     def calc_residual_jac(self, u):
         dRdU = np.zeros([self.n, self.n], dtype=u.dtype)
-        du = 1e-14
+        du = 1e-24
         for i in range(self.n):
             u[i] = u[i] + 1j*du
             R = self.calc_residual(u)
@@ -93,13 +102,14 @@ class Solver(object):
 
 
 class AdjointSolver(Solver):
-    def __init__(self, equation, x, u, obj):
+    def __init__(self, equation, x, u, obj, param):
         Solver.__init__(self, equation, x, u)
+        self.param = param
         self.obj = obj
         self.sens = self.calc_sensitivity()
     def calc_dJdU(self, u):
         dJdU = np.zeros(self.n, dtype=u.dtype)
-        du = 1e-14
+        du = 1e-24
         for i in range(self.n):
             u[i] = u[i] + 1j*du
             dJdU[i] = np.imag(self.obj(u, self.param))/du
@@ -113,15 +123,23 @@ class AdjointSolver(Solver):
         return psi
         
     def calc_residual_dparam(self, u):
-        dparam = 1e-14
-        self.param = self.param + 1j*dparam
-        R = self.calc_residual(u)
-        self.param = self.param - 1j*dparam
-        dRdparam = np.imag(R[:])/dparam
+        dparam = 1e-24
+        if hasattr(self.param, "__len__"):
+            dRdparam = np.zeros([self.n, self.n], dtype=u.dtype)
+            for i in range(self.n):
+                self.param[i] = self.param[i] + 1j*dparam
+                R = self.calc_residual(u)
+                self.param[i] = self.param[i] - 1j*dparam
+                dRdparam[:,i] = np.imag(R[:])/dparam
+        else:
+            self.param = self.param + 1j*dparam
+            R = self.calc_residual(u)
+            self.param = self.param - 1j*dparam
+            dRdparam = np.imag(R[:])/dparam
         return dRdparam
 
     def calc_obj_param(self):
-        dparam = 1e-14
+        dparam = 1e-24
         self.param = self.param + 1j*dparam
         delJ = np.imag(self.obj(self.u, self.param))/dparam
         self.param = self.param - 1j*dparam
