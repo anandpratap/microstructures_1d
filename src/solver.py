@@ -3,6 +3,7 @@ import sympy as sp
 import scipy.sparse as sparse
 from sympy.utilities.autowrap import ufuncify
 from scipy.sparse.linalg import spsolve
+from itertools import combinations
 
 class Solver(object):
     def __init__(self, equation, x, u, verbose=False):
@@ -36,31 +37,12 @@ class Solver(object):
         deta = 1.0
         x = self.x
         nx = np.size(x)
-        x_eta = np.zeros(nx, dtype = np.complex)
-        u_eta2 = np.zeros(nx, dtype = np.complex)
-        x_eta2 = np.zeros(nx, dtype = np.complex)
         
-        x_eta2[1:nx-1] = (x[2:nx] - 2.*x[1:nx-1] + x[0:nx-2])/deta**2
-        u_eta2[1:nx-1] = (u[2:nx] - 2.*u[1:nx-1] + u[0:nx-2])/deta**2
-        x_eta[1:nx-1] = (x[2:nx] - x[0:nx-2])/(2.*deta)
+        dx_1 = x[1:-1] - x[0:-2]
+        dx_2 = x[2:] - x[1:-1]
         
-        x_eta2[0] = (x[0] - 2.0*x[1] + x[2])/deta**2
-        u_eta2[0] = (u[0] - 2.0*u[1] + u[2])/deta**2
-        x_eta[0] = (x[1] - x[0])/deta
-        
-        x_eta2[-1] = (x[-1] - 2.0*x[-2] + x[-3])/deta**2
-        u_eta2[-1] = (u[-1] - 2.0*u[-2] + u[-3])/deta**2
-        x_eta[-1] = (x[-1] - x[-2])/deta
-        u_x = self.calc_first_der(u)
-        
-        from pylab import *
-        subplot(211)
-        plot(x, (u_x*x_eta2 - u_eta2), 'ro')
-        subplot(212)
-        plot(x, 1/x_eta**2, 'ro-')
-        # #plot(x, u_x*x_eta2, 'ro')
-        show()
-        u_xx = -(u_x*x_eta2 - u_eta2)/(x_eta**2 + 1.e-16)
+        u_xx = np.zeros(nx, dtype = np.complex)
+        u_xx[1:-1] = 2.0*(dx_1*u[2:] - (dx_1 + dx_2)*u[1:-1] + dx_2*u[0:-2])/(dx_1*dx_2*(dx_1 + dx_2))
         self.u_xx[:] = u_xx[:]
         return self.u_xx
         
@@ -68,110 +50,168 @@ class Solver(object):
         deta = 1.0
         x = self.x
         nx = np.size(x)
-        x_eta = np.zeros(nx, dtype = np.complex)
-        u_eta2 = np.zeros(nx, dtype = np.complex)
-        x_eta2 = np.zeros(nx, dtype = np.complex)
-        x_eta3 = np.zeros(nx, dtype = np.complex)
-        u_eta3 = np.zeros(nx, dtype = np.complex)
-        u_x = self.calc_first_der(u)
+        u_xxx = np.zeros(nx, dtype = np.complex)
+        alpha = np.zeros([5, nx-4], dtype = np.complex)
+        alpha[0,:] = x[0:-4] - x[2:-2]
+        alpha[1,:] = x[1:-3] - x[2:-2]
+        alpha[2,:] = x[2:-2] - x[2:-2]
+        alpha[3,:] = x[3:-1] - x[2:-2]
+        alpha[4,:] = x[4:] - x[2:-2]
+        num = np.zeros([5, nx-4], dtype=x.dtype)
+        den = np.ones([5, nx-4], dtype=x.dtype)
         
-        x_eta2[1:nx-1] = (x[2:nx] - 2.*x[1:nx-1] + x[0:nx-2])/deta**2
-        u_eta2[1:nx-1] = (u[2:nx] - 2.*u[1:nx-1] + u[0:nx-2])/deta**2
-        x_eta[1:nx-1] = (x[2:nx] - x[0:nx-2])/(2.*deta)
+        for i in range(5):
+            for j in range(5):
+                if i != j:
+                    num[i] += alpha[j,:]
+                    den[i] *= (alpha[i,:] - alpha[j,:])
+        num = -6.0*num
+        fac = num/den
+        u_xxx[2:-2] = fac[0,:]*u[0:-4] + fac[1,:]*u[1:-3] + fac[2,:]*u[2:-2] + fac[3,:]*u[3:-1] + fac[4,:]*u[4:]
         
-        x_eta2[0] = (x[0] - 2.0*x[1] + x[2])/deta**2
-        u_eta2[0] = (u[0] - 2.0*u[1] + u[2])/deta**2
-        x_eta[0] = (x[1] - x[0])/deta
+        # index 1
+        alpha = np.zeros(5, dtype=x.dtype)
+        alpha[0] = x[0] - x[1]
+        alpha[1] = x[1] - x[1]
+        alpha[2] = x[2] - x[1]
+        alpha[3] = x[3] - x[1]
+        alpha[4] = x[4] - x[1]
+        num = np.zeros(5, dtype=x.dtype)
+        den = np.ones(5, dtype=x.dtype)
         
-        x_eta2[-1] = (x[-1] - 2.0*x[-2] + x[-3])/deta**2
-        u_eta2[-1] = (u[-1] - 2.0*u[-2] + u[-3])/deta**2
-        x_eta[-1] = (x[-1] - x[-2])/deta
-
-        u_eta3[2:-2] = (-0.5*u[0:-4] + u[1:-3] - u[3:-1] + 0.5*u[4:])/deta**3
-        if self.hbc:
-            ub = 4.0*(-5.0/6.0*u[0] + 1.5*u[1] - 0.5*u[2] + 1.0/12.0*u[3])
-        else:
-            ub = u[1]
-
-        u_eta3[1] = (-0.5*ub + u[0] - u[2] + 0.5*u[3])/deta**3
-        if self.hbc:
-            ub = -4.0*(5.0/6.0*u[-1] - 1.5*u[-2] + 0.5*u[-3] - 1.0/12.0*u[-4])
-        else:
-            ub = u[-2]
-        u_eta3[-2] = (-0.5*u[-4] + u[-3] - u[-1] + 0.5*ub)/deta**4
-        
-        x_eta3[2:-2] = (-0.5*x[0:-4] + x[1:-3] - x[3:-1] + 0.5*x[4:])/deta**3
-        x_eta3[1] = -2.5*x[1] + 9.0*x[2] - 12.0*x[3] + 7.0*x[4] - 1.5*x[5] 
-        x_eta3[-2] = 2.5*x[-2] - 9.0*x[-3] + 12.0*x[-4] - 7.0*x[-5] + 1.5*x[-6] 
-        
-        u_x = self.calc_first_der(u)
-        u_xx = self.calc_second_der(u)
-        u_xxx = -(u_x*x_eta3 + 3.0*u_xx*x_eta*x_eta2 - u_eta3)/(x_eta**3 + 1e-16)
-        self.u_xxx[1:-1] = u_xxx[1:-1]
+        for i in range(5):
+            for j in range(5):
+                if i != j:
+                    num[i] += alpha[j]
+                    den[i] *= (alpha[i] - alpha[j])
+        num = -6.0*num
+        fac = num/den
+        for i in range(5):
+            u_xxx[1] += fac[i]*u[i]
+            
+        alpha = np.zeros(5, dtype=x.dtype)
+        alpha[0] = x[-5] - x[-2]
+        alpha[1] = x[-4] - x[-2]
+        alpha[2] = x[-3] - x[-2]
+        alpha[3] = x[-2] - x[-2]
+        alpha[4] = x[-1] - x[-2]
+        num = np.zeros(5, dtype=x.dtype)
+        den = np.ones(5, dtype=x.dtype)
+        for i in range(5):
+            for j in range(5):
+                if i != j:
+                    num[i] += alpha[j]
+                    den[i] *= (alpha[i] - alpha[j])
+        num = -6.0*num
+        fac = num/den
+        for i in range(5):
+            u_xxx[-2] += fac[i]*u[-5+i]
+        self.u_xxx[:] = u_xxx[:]
         return self.u_xxx
                 
     def calc_fourth_der(self, u):
         deta = 1.0
         x = self.x
         nx = np.size(x)
-        x_eta = np.zeros(nx, dtype = np.complex)
-        u_eta2 = np.zeros(nx, dtype = np.complex)
-        x_eta2 = np.zeros(nx, dtype = np.complex)
-        x_eta3 = np.zeros(nx, dtype = np.complex)
-        u_eta3 = np.zeros(nx, dtype = np.complex)
-        x_eta4 = np.zeros(nx, dtype = np.complex)
-        u_eta4 = np.zeros(nx, dtype = np.complex)
-        u_x = self.calc_first_der(u)
+        u_xxxx = np.zeros(nx, dtype = np.complex)
         
-        x_eta2[1:nx-1] = (x[2:nx] - 2.*x[1:nx-1] + x[0:nx-2])/deta**2
-        u_eta2[1:nx-1] = (u[2:nx] - 2.*u[1:nx-1] + u[0:nx-2])/deta**2
-        x_eta[1:nx-1] = (x[2:nx] - x[0:nx-2])/(2.*deta)
+        alpha = np.zeros([5, nx-4], dtype = np.complex)
+        alpha[0,:] = x[0:-4] - x[2:-2]
+        alpha[1,:] = x[1:-3] - x[2:-2]
+        alpha[2,:] = x[2:-2] - x[2:-2]
+        alpha[3,:] = x[3:-1] - x[2:-2]
+        alpha[4,:] = x[4:] - x[2:-2]
+        den = np.ones([5, nx-4], dtype=x.dtype)
         
-        x_eta2[0] = (x[0] - 2.0*x[1] + x[2])/deta**2
-        u_eta2[0] = (u[0] - 2.0*u[1] + u[2])/deta**2
-        x_eta[0] = (x[1] - x[0])/deta
+        for i in range(5):
+            for j in range(5):
+                if i != j:
+                    den[i] *= (alpha[i,:] - alpha[j,:])
+        fac = 24.0/den
+        u_xxxx[2:-2] = fac[0,:]*u[0:-4] + fac[1,:]*u[1:-3] + fac[2,:]*u[2:-2] + fac[3,:]*u[3:-1] + fac[4,:]*u[4:]
         
-        x_eta2[-1] = (x[-1] - 2.0*x[-2] + x[-3])/deta**2
-        u_eta2[-1] = (u[-1] - 2.0*u[-2] + u[-3])/deta**2
-        x_eta[-1] = (x[-1] - x[-2])/deta
-
-        u_eta3[2:-2] = (-0.5*u[0:-4] + u[1:-3] - u[3:-1] + 0.5*u[4:])/deta**3
+        # index 1
         if self.hbc:
-            ub = 4.0*(-5.0/6.0*u[0] + 1.5*u[1] - 0.5*u[2] + 1.0/12.0*u[3])
+            alpha = np.zeros(5, dtype=x.dtype)
+            xb = x[0]-(x[1] - x[0])
+            alpha[0] = xb - x[0]
+            alpha[1] = x[0] - x[0]
+            alpha[2] = x[1] - x[0]
+            alpha[3] = x[2] - x[0]
+            alpha[4] = x[3] - x[0]
+            den = np.ones(5, dtype=x.dtype)
+            num = np.zeros(5, dtype=x.dtype)
+            for i in range(5):
+                for j in range(5):
+                    if i != j:
+                        den[i] *= (alpha[i] - alpha[j])
+                tmp_list = range(5)
+                del tmp_list[i]
+                combs = list(combinations(tmp_list, 3))
+                for k in combs:
+                    num[i] += alpha[k[0]]*alpha[k[1]]*alpha[k[2]]
+            fac = -num/den
+            dudx = 0.0
+            ub = (dudx - u[3]*fac[4] - u[2]*fac[3] - u[1]*fac[2] - u[0]*fac[1])/(fac[0] + 1e-16)
         else:
             ub = u[1]
+        alpha = np.zeros(5, dtype=x.dtype)
+        xb = x[0]-(x[1] - x[0])
+        alpha[0] = xb - x[1]
+        alpha[1] = x[0] - x[1]
+        alpha[2] = x[1] - x[1]
+        alpha[3] = x[2] - x[1]
+        alpha[4] = x[3] - x[1]
+        den = np.ones(5, dtype=x.dtype)
+        for i in range(5):
+            for j in range(5):
+                if i != j:
+                    den[i] *= (alpha[i] - alpha[j])
+        fac = 24.0/den
+        u_xxxx[1] = fac[0]*ub + fac[1]*u[0] + fac[2]*u[1] + fac[3]*u[2] + fac[4]*u[3]
 
-        u_eta3[1] = (-0.5*ub + u[0] - u[2] + 0.5*u[3])/deta**3
+
+        #index -2
         if self.hbc:
-            ub = -4.0*(5.0/6.0*u[-1] - 1.5*u[-2] + 0.5*u[-3] - 1.0/12.0*u[-4])
+            alpha = np.zeros(5, dtype=x.dtype)
+            xb = x[-1]+(x[-1] - x[-2])
+            alpha[0] = xb - x[-1]
+            alpha[1] = x[-1] - x[-1]
+            alpha[2] = x[-2] - x[-1]
+            alpha[3] = x[-3] - x[-1]
+            alpha[4] = x[-4] - x[-1]
+            den = np.ones(5, dtype=x.dtype)
+            num = np.zeros(5, dtype=x.dtype)
+            for i in range(5):
+                for j in range(5):
+                    if i != j:
+                        den[i] *= (alpha[i] - alpha[j])
+                tmp_list = range(5)
+                del tmp_list[i]
+                combs = list(combinations(tmp_list, 3))
+                for k in combs:
+                    num[i] += alpha[k[0]]*alpha[k[1]]*alpha[k[2]]
+            fac = -num/den
+            dudx = 0.0
+            ub = (dudx - u[-4]*fac[4] - u[-3]*fac[3] - u[-2]*fac[2] - u[-1]*fac[1])/(fac[0] + 1e-16)
         else:
             ub = u[-2]
-        u_eta3[-2] = (-0.5*u[-4] + u[-3] - u[-1] + 0.5*ub)/deta**4
         
-        x_eta3[2:-2] = (-0.5*x[0:-4] + x[1:-3] - x[3:-1] + 0.5*x[4:])/deta**3
-        x_eta3[1] = -2.5*x[1] + 9.0*x[2] - 12.0*x[3] + 7.0*x[4] - 1.5*x[5] 
-        x_eta3[-2] = 2.5*x[-2] - 9.0*x[-3] + 12.0*x[-4] - 7.0*x[-5] + 1.5*x[-6] 
+        alpha = np.zeros(5, dtype=x.dtype)
+        xb = x[-1]+(x[-1] - x[-2])
+        alpha[0] = xb - x[-2]
+        alpha[1] = x[-1] - x[-2]
+        alpha[2] = x[-2] - x[-2]
+        alpha[3] = x[-3] - x[-2]
+        alpha[4] = x[-4] - x[-2]
+        den = np.ones(5, dtype=x.dtype)
         
-        u_x = self.calc_first_der(u)
-        u_xx = self.calc_second_der(u)
-        u_xxx = self.calc_third_der(u)
-
-        u_eta4[2:-2] = (u[0:-4] - 4.0*u[1:-3] + 6.0*u[2:-2] - 4.0*u[3:-1] + u[4:])/deta**4
-        if self.hbc:
-            ub = 4.0*(-5.0/6.0*u[0] + 1.5*u[1] - 0.5*u[2] + 1.0/12.0*u[3])
-        else:
-            ub = u[1]
-        u_eta4[1] = (ub - 4.0*u[0] + 6.0*u[1] - 4.0*u[2] + u[3])/deta**4
-        if self.hbc:
-            ub = -4.0*(5.0/6.0*u[-1] - 1.5*u[-2] + 0.5*u[-3] - 1.0/12.0*u[-4])
-        else:
-            ub = u[-2]
-        u_eta4[-2] = (u[-4] - 4.0*u[-3] + 6.0*u[-2] - 4.0*u[-1] + ub)/deta**4
-        
-        x_eta4[2:-2] = (x[0:-4] - 4.0*x[1:-3] + 6.0*x[2:-2] - 4.0*x[3:-1] + x[4:])/deta**4
-        x_eta4[1] = 3.0*x[1] - 14.0*x[2] + 26.0*x[3] - 24.0*x[4] + 11.0*x[5] - 2*x[6] 
-        x_eta4[-2] = -3.0*x[-2] + 14.0*x[-3] - 26.0*x[-4] + 24.0*x[-5] - 11.0*x[-6] + 2*x[-7] 
-        u_xxxx = -(u_x*x_eta4 + 4.0*u_xx*x_eta*x_eta3 + 3.0*u_xx*x_eta2**2 + 6.0*u_xxx*x_eta**2*x_eta2 - u_eta4)/(x_eta**4 + 1e-16)
+        for i in range(5):
+            for j in range(5):
+                if i != j:
+                    den[i] *= (alpha[i] - alpha[j])
+        fac = 24.0/den
+        u_xxxx[-2] = fac[0]*ub + fac[1]*u[-1] + fac[2]*u[-2] + fac[3]*u[-3] + fac[4]*u[-4]
         self.u_xxxx[1:-1] = u_xxxx[1:-1]
         return self.u_xxxx
 
