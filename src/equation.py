@@ -115,9 +115,18 @@ class NonConvexEquationParam(Equation):
     def energy_function(self):
         self.mu = 1.0
         self.g = 2**(-12)
-        self.l = 1/8.0*self.param
+        self.l = 1/8.0
         alpha = 1/4.0
         self.w = self.mu*(self.eps**4 - 2*alpha**2*self.eps**2)/alpha**4 + 0.5*self.mu*self.l**2*self.eps_x**2
+    
+    def set_length(self, l):
+        self.l = l
+        alpha = 1/4.0
+        self.w = self.mu*(self.eps**4 - 2*alpha**2*self.eps**2)/alpha**4 + 0.5*self.mu*self.l**2*self.eps_x**2
+        self.get_sigma()
+        self.get_beta()
+        self.f = self.sigma_f - self.beta_f
+
 
     def boundary(self, x, u, param):
         R = np.zeros(np.shape(u), dtype=u.dtype)
