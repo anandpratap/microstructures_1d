@@ -21,9 +21,9 @@ class Solver(object):
         self.maxiter = 10
         self.dt = 1e7
         self.parse_equation()
-        self.param = 1.0
+        self.param = 0.0
         self.verbose = verbose
-        self.tol = 1e-10
+        self.tol = 1e-12
         self.hbc = True
 
     def calc_first_der(self, u):
@@ -217,24 +217,46 @@ class Solver(object):
 
     def parse_equation(self):
         if hasattr(self.equation, "param"):
-            args = (self.equation.eps, self.equation.u_xx, self.equation.u_xxxx, self.equation.param)
+            argsf = (self.equation.eps, self.equation.u_xx, self.equation.u_xxxx, self.equation.param)
+            argsw = (self.equation.eps, self.equation.eps_x, self.equation.u_xx, self.equation.u_xxxx, self.equation.param)
         else:
-            args = (self.equation.eps, self.equation.u_xx, self.equation.u_xxxx)
-        self.f = sp.lambdify(args, self.equation.f, "numpy")
+            argsf = (self.equation.eps, self.equation.u_xx, self.equation.u_xxxx)
+            argsw = (self.equation.eps, self.equation.eps_x, self.equation.u_xx, self.equation.u_xxxx)
+        self.f = sp.lambdify(argsf, self.equation.f, "numpy")
+        self.w = sp.lambdify(argsw, self.equation.w, "numpy")
+
+    def calc_total_energy(self, u):
+        __funcs__ = [self.calc_first_der, self.calc_second_der, self.calc_fourth_der, self.calc_third_der]
+        for func in __funcs__:
+            func(u)
+
+        if hasattr(self.equation, "param"):
+            w = self.w(self.u_x, self.u_xx, self.u_xx, self.u_xxxx, self.param)
+        else:
+            w = self.w(self.u_x, self.u_xx, self.u_xx, self.u_xxxx)
+        W = 0.0
+        for i in range(len(self.x)-1):
+            dx = self.x[i+1] - self.x[i]
+            w_avg = (w[i+1] + w[i])*0.5
+            W += w_avg*dx
+        return W
+
     def calc_residual(self, u):
         if hasattr(self.equation, "param"):
             R = self.equation.boundary(self.x, u, self.param)
         else:
             R = self.equation.boundary(self.x, u)
 
-        __funcs__ = [self.calc_first_der, self.calc_second_der, self.calc_fourth_der]
+        __funcs__ = [self.calc_first_der, self.calc_second_der, self.calc_fourth_der, self.calc_third_der]
         for func in __funcs__:
             func(u)
         if hasattr(self.equation, "param"):
             R_ = self.f(self.u_x, self.u_xx, self.u_xxxx, self.param)
         else:
             R_ = self.f(self.u_x, self.u_xx, self.u_xxxx)
-        R[1:-1] = R_[1:-1]
+
+        source = self.param[4]*3072.0*self.u_xxxx
+        R[1:-1] = R_[1:-1] + source[1:-1]
         assert(np.size(R) == self.n)
         return R
 
